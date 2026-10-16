@@ -26,32 +26,6 @@ pipeline {
             }
         }
 
-        stage('Test Docker Hub Credential') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    bat '''
-                        if not "%DOCKER_USER%"=="pradipta211" (
-                            echo Username credential tidak sesuai
-                            exit /b 1
-                        )
-
-                        if "%DOCKER_PASS%"=="" (
-                            echo Password credential kosong
-                            exit /b 1
-                        )
-
-                        echo Username sesuai dan password tersedia
-                    '''
-                }
-            }
-        }
-
         stage('Push Docker Image') {
             steps {
                 withCredentials([
@@ -61,9 +35,22 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    bat '''
-                        docker login -u "%DOCKER_USER%" --password-stdin < nul
+                    powershell '''
+                        $securePass = ConvertTo-SecureString $env:DOCKER_PASS -AsPlainText -Force
+                        $credential = New-Object System.Management.Automation.PSCredential($env:DOCKER_USER, $securePass)
+                        $credential.GetNetworkCredential().Password |
+                            docker login --username $env:DOCKER_USER --password-stdin
+
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Login Docker Hub gagal"
+                        }
                     '''
+
+                    bat "docker push %IMAGE_NAME%:%BUILD_NUMBER%"
+
+                    bat "docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest"
+
+                    bat "docker push %IMAGE_NAME%:latest"
                 }
             }
         }
