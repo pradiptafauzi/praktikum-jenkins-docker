@@ -26,22 +26,44 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Test Docker Hub Credential') {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: REGISTRY_CREDENTIALS,
+                        credentialsId: 'dockerhub-credentials',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    powershell '$env:DOCKER_PASS | docker login --username $env:DOCKER_USER --password-stdin'
+                    bat '''
+                        if not "%DOCKER_USER%"=="pradipta211" (
+                            echo Username credential tidak sesuai
+                            exit /b 1
+                        )
 
-                    bat "docker push %IMAGE_NAME%:%BUILD_NUMBER%"
+                        if "%DOCKER_PASS%"=="" (
+                            echo Password credential kosong
+                            exit /b 1
+                        )
 
-                    bat "docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest"
+                        echo Username sesuai dan password tersedia
+                    '''
+                }
+            }
+        }
 
-                    bat "docker push %IMAGE_NAME%:latest"
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    bat '''
+                        docker login -u "%DOCKER_USER%" --password-stdin < nul
+                    '''
                 }
             }
         }
