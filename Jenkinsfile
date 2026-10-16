@@ -35,7 +35,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                    powershell '$env:DOCKER_PASS | docker login --username $env:DOCKER_USER --password-stdin'
 
                     bat "docker push %IMAGE_NAME%:%BUILD_NUMBER%"
 
